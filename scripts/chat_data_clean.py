@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from collections import namedtuple
+import pickle
 import json
 from jsonpath_rw import jsonpath, parse
 from pprint import pprint
@@ -25,10 +26,13 @@ def parse_chats_messages(chats_data):
         else:
             yield ChatHistory(gigId, parsed_chat_history)
 
-if __name__ == "__main__":
-    # prints 5 parsed chat messages
+def pickle_chat_histories(fp = 'data/chat_histories.pkl'):
+    """Serializes chat_histories to disk."""
     chats_data = import_chats_data()
     chat_histories = parse_chats_messages(chats_data)
-    for _ in range(5):
-        pprint(next(chat_histories))
+    with open(fp, 'wb') as out_fd:
+        pickle.dump(list(chat_histories), out_fd)
+
+if __name__ == "__main__":
+    pickle_chat_histories()
 

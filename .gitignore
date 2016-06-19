@@ -1,2 +1,4 @@
 data/
 papers/
+*.pyc
+**/__pycache__/
