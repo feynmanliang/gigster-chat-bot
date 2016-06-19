@@ -7,8 +7,10 @@ from pprint import pprint
 from scripts.chat_data_clean import pickle_chat_histories
 from scripts.gig_data_clean import parse_gigs
 
+DATASET_PATH = 'data/clean_dataset.pkl'
+
 GigInstance = namedtuple('GigInstance', ['gigId', 'messages', 'features', 'templates'])
-def make_clean_dataset(fp = 'data/clean_dataset.pkl', chats_pkl_path = 'data/chat_histories.pkl'):
+def make_clean_dataset(fp = DATASET_PATH, chats_pkl_path = 'data/chat_histories.pkl'):
     with open(chats_pkl_path, 'rb') as fd:
         try:
             chats = pickle.load(fd)
@@ -38,6 +40,17 @@ def make_clean_dataset(fp = 'data/clean_dataset.pkl', chats_pkl_path = 'data/cha
     # dump dataset
     with open(fp, 'wb') as out_fd:
         pickle.dump(dataset, out_fd)
+
+def load_dataset():
+    try:
+        fd = open(DATASET_PATH, 'rb')
+    except FileNotFoundError:
+        print('Dataset not found at {}, regenerating'.format(DATASET_PATH))
+        make_clean_dataset()
+        fd = open(DATASET_PATH, 'rb')
+    dataset = pickle.load(fd)
+    fd.close()
+    return dataset
 
 if __name__ == '__main__':
     make_clean_dataset()
