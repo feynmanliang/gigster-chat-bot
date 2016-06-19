@@ -1,6 +1,7 @@
 #!/usr/bin/env zsh
-#
-if [ "$(ps aux | grep "mongod " | awk '{print $11}')" == "grep" ]; then
+
+running=$(ps aux | grep "mongod " | grep -v grep)
+if [ -z "$running" ]; then
   mongod --config /usr/local/etc/mongod.conf &
 fi
 
