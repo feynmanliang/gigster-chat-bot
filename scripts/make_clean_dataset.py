@@ -9,7 +9,7 @@ from scripts.gig_data_clean import parse_gigs
 
 DATASET_PATH = 'data/clean_dataset.pkl'
 
-GigInstance = namedtuple('GigInstance', ['gigId', 'messages', 'features', 'templates'])
+GigInstance = namedtuple('GigInstance', ['gigId', 'name', 'messages', 'features', 'templates'])
 def make_clean_dataset(fp = DATASET_PATH, chats_pkl_path = 'data/chat_histories.pkl'):
     with open(chats_pkl_path, 'rb') as fd:
         try:
@@ -32,6 +32,7 @@ def make_clean_dataset(fp = DATASET_PATH, chats_pkl_path = 'data/chat_histories.
     dataset = []
     for id in valid_gigIds:
         gigInstance = GigInstance(gigId = id,
+				  name = gigs[id].name,
                                   messages = chats[id].messages,
                                   features = gigs[id].features,
                                   templates = gigs[id].templates)
