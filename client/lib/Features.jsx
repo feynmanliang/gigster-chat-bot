@@ -45,34 +45,34 @@ class Features {
     }
 
     draw(data) {
-        let f = this;
-
-        this.svg.append("g")
-            .attr("class", "x axis")
-            .attr("transform", "translate(0," + f.height + ")")
-            .call(this.xAxis);
-
-        this.svg.append("g")
-            .attr("class", "y axis")
-            .call(f.yAxis)
-          .append("text")
-            .attr("transform", "rotate(-90)")
-            .attr("y", 6)
-            .attr("dy", ".71em")
-            .style("text-anchor", "end")
-            .text("Frequency");
-
-        this.svg.selectAll(".bar")
-            .data(this.data)
-            .enter().append("rect")
-              .attr("fill", "greenyellow")
-              .attr("class", "bar")
-              .attr("x", function(d) { return f.x(d.i); })
-              .attr("width", this.width/f.data.length)
-              .attr("y", function(d) { return f.y(d.data); })
-              .attr("height", function(d) { return f.height - f.y(d.data); });
-
-        this.svg.exit().remove();
+        // let f = this;
+        //
+        // this.svg.append("g")
+        //     .attr("class", "x axis")
+        //     .attr("transform", "translate(0," + f.height + ")")
+        //     .call(this.xAxis);
+        //
+        // this.svg.append("g")
+        //     .attr("class", "y axis")
+        //     .call(f.yAxis)
+        //   .append("text")
+        //     .attr("transform", "rotate(-90)")
+        //     .attr("y", 6)
+        //     .attr("dy", ".71em")
+        //     .style("text-anchor", "end")
+        //     .text("Frequency");
+        //
+        // this.svg.selectAll(".bar")
+        //     .data(this.data)
+        //     .enter().append("rect")
+        //       .attr("fill", "greenyellow")
+        //       .attr("class", "bar")
+        //       .attr("x", function(d) { return f.x(d.i); })
+        //       .attr("width", this.width/f.data.length)
+        //       .attr("y", function(d) { return f.y(d.data); })
+        //       .attr("height", function(d) { return f.height - f.y(d.data); });
+        //
+        // this.svg.exit().remove();
     }
 }
 

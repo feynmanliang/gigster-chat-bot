@@ -18,12 +18,12 @@ class ChatHistory extends React.Component {
         super();
     }
 
-    renderBlurb(blurb) {
-        return <Message key={ `${Math.random().toString()} ${blurb.ts}` } message={ blurb }/>;
+    renderBlurb(blurb, feat) {
+        return <Message key={ `${Math.random().toString()} ${blurb.ts}` } message={ blurb } features={feat}/>;
     }
 
-    showMessages(blurbs) {
-        return blurbs.map(this.renderBlurb);
+    showMessages(blurbs, features) {
+      return blurbs.map( (blurb, idx) => this.renderBlurb(blurb, features[idx]));
     }
 
     showFeatures(features) {
@@ -39,7 +39,7 @@ class ChatHistory extends React.Component {
                 <ul
                     id="all-messages"
                     className="all-messages">
-                    { this.showMessages(blurbs) }
+                    { this.showMessages(blurbs, features) }
                 </ul>
                 <ul
                     id="all-features"

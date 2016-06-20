@@ -83,6 +83,7 @@ class App extends React.Component {
             endpts: { start: Math.max(messages.length-this.maxMsgs, 0), end: messages.length+1 },
             messages: messages.concat([message]),
             features: features.concat([newFeatures]),
+            // features: [newFeatures],
             bot: waitingForBot
         });
     }

@@ -7,7 +7,8 @@ const propTypes = {
         user: string,
         msg: string,
         ts: string
-    })
+    }),
+    features: PropTypes.object
 };
 
 class Message extends React.Component {
@@ -27,11 +28,22 @@ class Message extends React.Component {
         const { message } = this.props;
         const { user, msg, ts } = message;
 
+        let features;
+        try {
+          features = this.props.features.data.map(x => x.data);
+        } catch(err) {
+          features = [0, 0];
+        }
+        features = JSON.stringify(features);
+
         return (
             <li
                 style={this.getColorStyle(user)}
                 className="user-message">
-                <div className="message-field user-message">{msg}</div>
+                <div className="message-field user-message">
+                  {msg}
+                  {features}
+                </div>
             </li>
         );
     }
