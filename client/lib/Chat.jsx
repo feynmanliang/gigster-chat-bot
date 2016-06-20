@@ -15,19 +15,22 @@ class ChatInput extends React.Component {
         super();
     }
 
-    submit(userInputRelayer, e) {
-        if (e.which === 13) {
-            const value = e.target.value;
-            userInputRelayer(value);
+    handleKeyPress(e) {
+      if (e.which === 13) { // pressed enter
+        const { waitingForBot, userInputRelayer } = this.props;
+        if (!waitingForBot) {
+          userInputRelayer(e.target.value);
+          this.refs.chatInput.value = "";
         }
+      }
     }
 
     render() {
-        const { waitingForBot, userInputRelayer } = this.props;
         return (
             <input
                   className="chat-input"
-                  onKeyPress={ waitingForBot ? noop : this.submit.bind(this, userInputRelayer) }
+                  ref='chatInput'
+                  onKeyPress={ this.handleKeyPress.bind(this) }
                   placeholder="ask a question"/>
          );
     }
