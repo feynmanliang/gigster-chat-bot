@@ -16,6 +16,8 @@ class ModelServer(object):
     def GET(self, message):
         if message == 'RESET':
             ModelServer.messages = []
+            # TODO: remove database.db when resetting chatbot
+            #ModelServer.chatbot = load_chatbot()
             response = 'Resetting conversation state.'
             pred = [0, 0]
         else:

@@ -24,17 +24,30 @@ class Message extends React.Component {
         return { borderLeftColor: this.colorMap[user] };
     }
 
-    render() {
-        const { message } = this.props;
-        const { user, msg, ts } = message;
-
+    makeFeatures(user, features) {
+      if (user === 'bot') {
         let features;
         try {
           features = this.props.features.data.map(x => x.data);
         } catch(err) {
           features = [0, 0];
         }
-        features = JSON.stringify(features);
+        features = JSON.stringify({
+          marketplace: features[0],
+          social: features[1]
+        });
+
+        return (
+          <div className="features">
+            {features}
+          </div>
+        );
+      }
+    }
+
+    render() {
+        const { message } = this.props;
+        const { user, msg, ts } = message;
 
         return (
             <li
@@ -42,7 +55,7 @@ class Message extends React.Component {
                 className="user-message">
                 <div className="message-field user-message">
                   {msg}
-                  {features}
+                  {this.makeFeatures(user)}
                 </div>
             </li>
         );
