@@ -16,6 +16,7 @@ from sklearn.naive_bayes import BernoulliNB, MultinomialNB
 from sklearn.neighbors import KNeighborsClassifier, NearestCentroid
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.cross_validation import train_test_split
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.utils.extmath import density
 from sklearn.externals import joblib
@@ -204,7 +205,9 @@ def prepare_train_test():
     for gigInstance in dataset:
         label = make_label(gigInstance)
         if label:
-            X.append('\n'.join(map(lambda m: m.text, gigInstance.messages)))
+            chat_text = '\n'.join(map(lambda m: m.text, gigInstance.messages))
+            X.append(chat_text)
+
             y.append(label)
     return train_test_split(X, y, test_size=0.1, random_state=42)
 
@@ -312,8 +315,9 @@ def evaluate_classifiers():
 
 def make_classification_pipeline():
     steps = make_preprocessing_pipeline().steps + [
-        ('feature_selection', LinearSVC(penalty="l1", dual=False, tol=1e-3)),
-        ('classification', LinearSVC())
+        ('feature_selection', LinearSVC(penalty="l1", dual=False)),
+        ('classification', LinearSVC(C=0.3, dual=False)),
+        ('prob_calibration', CalibratedClassifierCV(cv=2, method='sigmoid'))
     ]
     return Pipeline(steps)
 
