@@ -1,22 +1,36 @@
 #!/usr/bin/env python
 
+
 import spacy
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
-from sklearn.cross_validation import train_test_split
-from sklearn.base import TransformerMixin
-from sklearn.pipeline import Pipeline
-from sklearn.svm import LinearSVC
-from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from nltk.corpus import stopwords
+
+
+from sklearn.pipeline import Pipeline
+from sklearn.base import TransformerMixin
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
+from sklearn.linear_model import RidgeClassifier
+from sklearn.svm import LinearSVC
+from sklearn.linear_model import SGDClassifier, Perceptron, PassiveAggressiveClassifier
+from sklearn.naive_bayes import BernoulliNB, MultinomialNB
+from sklearn.neighbors import KNeighborsClassifier, NearestCentroid
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.cross_validation import train_test_split
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.utils.extmath import density
+from sklearn.externals import joblib
+
+from time import time
+from collections import Counter
+
+import os.path
 import string
 import re
 from pprint import pprint
 
 from scripts.make_clean_dataset import GigInstance, make_clean_dataset, load_dataset
 
-parser = spacy.load('en')
-
+MODEL_OUTPATH = 'data/market_vs_social_pipeline.pkl'
 DATASET_PATH = './data/clean_dataset.pkl'
 
 MARKETPLACE = {
@@ -68,7 +82,6 @@ SOCIAL = {
 
 def make_label(gigInstance):
     "Generates marketplace vs social template labels for a `GigInstance`."
-    from collections import Counter
     cnts = Counter()
     # NOTE: multiple templates exist for some gigs, by not deduping we asssume
     # when a template appears twice then it's twice as relevant
@@ -131,6 +144,7 @@ def cleanText(text):
 # A custom function to tokenize the text using spaCy
 # and convert to lemmas
 def tokenizeText(sample):
+    parser = spacy.load('en')
 
     # get the tokens using spaCy
     tokens = parser(sample)
@@ -181,22 +195,8 @@ def printNMostInformative(vectorizer, clf, N):
     for feat in topClass2:
         print(feat)
 
-
-if __name__ == '__main__':
+def prepare_train_test():
     dataset = load_dataset()
-
-    # the vectorizer and classifer to use, the tokenizer in CountVectorizer uses a custom function (spaCy's tokenizer)
-    cleaner = CleanTextTransformer()
-    vectorizer = CountVectorizer(tokenizer=tokenizeText, ngram_range=(1,1))
-    tfidf = TfidfTransformer(use_idf=True)
-    clf = LinearSVC(loss='hinge', penalty='l2', random_state=42)
-
-    # the pipeline to clean, tokenize, vectorize, and classify
-    pipe = Pipeline([
-        ('cleanText', cleaner),
-        ('vectorizer', vectorizer),
-        ('tfidf', tfidf),
-        ('clf', clf)])
 
     # data
     X = []
@@ -206,20 +206,126 @@ if __name__ == '__main__':
         if label:
             X.append('\n'.join(map(lambda m: m.text, gigInstance.messages)))
             y.append(label)
-    train, test, labelsTrain, labelsTest = train_test_split(X, y, test_size=0.1, random_state=42)
+    return train_test_split(X, y, test_size=0.1, random_state=42)
 
-    # train
+def make_preprocessing_pipeline():
+    # the vectorizer and classifer to use, the tokenizer in CountVectorizer uses a custom function (spaCy's tokenizer)
+    cleaner = CleanTextTransformer()
+    tfidf = TfidfVectorizer(sublinear_tf=True, max_df=0.5)
+
+    # the pipeline to clean, tokenize, vectorize, and classify
+    pipe = Pipeline([
+        ('cleanText', cleaner),
+        ('tfidf', tfidf)])
+    return pipe
+
+# TODO: actually run this and tune the classifier
+def do_grid_search(pipe):
+    "Grid searches pipeline parameters."
+    from sklearn.grid_search import GridSearchCV
+    parameters = {
+        'vectorizer__ngram_range': [(1, 1), (1, 2)],
+        'tfidf__use_idf': (True, False)
+    }
+    gs_pipe = GridSearchCV(pipe, parameters, n_jobs=-1).fit(train, labelsTrain)
+    best_parameters, score, _ = max(gs_pipe.grid_scores_, key=lambda x: x[1])
+    print("Score: {}".format(score))
+    for param_name in sorted(parameters.keys()):
+        print("%s: %r" % (param_name, best_parameters[param_name]))
+
+# this method shows L-SVM with L1 Var Selection does best (78% acc)
+def evaluate_classifiers():
+    train, test, labelsTrain, labelsTest = prepare_train_test()
+    pipe = make_preprocessing_pipeline()
     pipe.fit(train, labelsTrain)
 
-    # test
+    def benchmark(clf):
+        "Benchmarks an algorithm."
+        print('_' * 10)
+        print(clf)
+        t0 = time()
+        clf.fit(pipe.transform(train), labelsTrain)
+        train_time = time() - t0
+        print("train time: %0.3fs" % train_time)
+
+        t0 = time()
+        pred = clf.predict(pipe.transform(test))
+        test_time = time() - t0
+        print("test time:  %0.3fs" % test_time)
+
+        score = accuracy_score(labelsTest, pred)
+        print("accuracy:   %0.3f" % score)
+
+        if hasattr(clf, 'coef_'):
+            print("dimensionality: %d" % clf.coef_.shape[1])
+            print("density: %f" % density(clf.coef_))
+        clf_descr = str(clf).split('(')[0]
+        return clf_descr, score, train_time, test_time
+
+    results = []
+    for clf, name in (
+            (RidgeClassifier(tol=1e-2, solver="lsqr"), "Ridge Classifier"),
+            (Perceptron(n_iter=50), "Perceptron"),
+            (PassiveAggressiveClassifier(n_iter=50), "Passive-Aggressive"),
+            (KNeighborsClassifier(n_neighbors=10), "kNN"),
+            (RandomForestClassifier(n_estimators=100), "Random forest")):
+        print('=' * 10)
+        print(name)
+        results.append(benchmark(clf))
+
+    for penalty in ["l2", "l1"]:
+        print('=' * 10)
+        print("%s penalty" % penalty.upper())
+        # Train Liblinear model
+        results.append(benchmark(LinearSVC(loss='l2', penalty=penalty,
+                                    dual=False, tol=1e-3)))
+
+        # Train SGD model
+        results.append(benchmark(SGDClassifier(alpha=.0001, n_iter=50,
+                                               penalty=penalty)))
+
+    # Train SGD with Elastic Net penalty
+    print('=' * 10)
+    print("Elastic-Net penalty")
+    results.append(benchmark(SGDClassifier(alpha=.0001, n_iter=50,
+                                           penalty="elasticnet")))
+
+    # Train NearestCentroid without threshold
+    print('=' * 10)
+    print("NearestCentroid (aka Rocchio classifier)")
+    results.append(benchmark(NearestCentroid()))
+
+    # Train sparse Naive Bayes classifiers
+    print('=' * 10)
+    print("Naive Bayes")
+    results.append(benchmark(MultinomialNB(alpha=.01)))
+    results.append(benchmark(BernoulliNB(alpha=.01)))
+
+    print('=' * 10)
+    print("LinearSVC with L1-based feature selection")
+    # The smaller C, the stronger the regularization.
+    # The more regularization, the more sparsity.
+    results.append(benchmark(Pipeline([
+      ('feature_selection', LinearSVC(penalty="l1", dual=False, tol=1e-3)),
+      ('classification', LinearSVC())
+    ])))
+
+def make_classification_pipeline():
+    steps = make_preprocessing_pipeline().steps + [
+        ('feature_selection', LinearSVC(penalty="l1", dual=False, tol=1e-3)),
+        ('classification', LinearSVC())
+    ]
+    return Pipeline(steps)
+
+def evaluate(pipe, test, labelsTest):
     preds = pipe.predict(test)
-    print("----------------------------------------------------------------------------------------------")
-    print("results:")
-    for (sample, pred, label) in zip(test, preds, labelsTest):
-        print(sample)
-        print('--')
-        print('prediction: {}, label: {}'.format(pred, label))
-        print('--')
+    # print("----------------------------------------------------------------------------------------------")
+    # print("results:")
+    # for (sample, pred, label) in zip(test, preds, labelsTest):
+    #     print(sample)
+    #     print('--')
+    #     print('prediction: {}, label: {}'.format(pred, label))
+    #     print('--')
 
     print("----------------------------------------------------------------------------------------------")
     print("accuracy:", accuracy_score(labelsTest, preds))
@@ -230,4 +336,22 @@ if __name__ == '__main__':
     print("----------------------------------------------------------------------------------------------")
     print("Top 10 features used to predict: ")
     # show the top features
+    vectorizer = pipe.steps[1][1]
+    clf = pipe.steps[2][1]
     printNMostInformative(vectorizer, clf, 10)
+
+if __name__ == '__main__':
+    train, test, labelsTrain, labelsTest = prepare_train_test()
+    if os.path.exists(MODEL_OUTPATH):
+        print("Loading pipeline from: {}".format(MODEL_OUTPATH))
+        pipe = joblib.load(MODEL_OUTPATH)
+    else:
+        print("Training pipeline")
+        pipe = make_classification_pipeline()
+        pipe.fit(train, labelsTrain)
+
+    # test
+    evaluate(pipe, test, labelsTest)
+
+    # save
+    joblib.dump(pipe, MODEL_OUTPATH)
