@@ -31,7 +31,7 @@ from pprint import pprint
 
 from scripts.make_clean_dataset import GigInstance, make_clean_dataset, load_dataset
 
-MODEL_OUTPATH = 'data/market_vs_social_pipeline.pkl'
+MODEL_OUTPATH = './models/market_vs_social_pipeline.pkl'
 DATASET_PATH = './data/clean_dataset.pkl'
 
 MARKETPLACE = {
