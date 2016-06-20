@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
 import spacy
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 from sklearn.cross_validation import train_test_split
 from sklearn.base import TransformerMixin
 from sklearn.pipeline import Pipeline
 from sklearn.svm import LinearSVC
 from sklearn.feature_extraction.stop_words import ENGLISH_STOP_WORDS
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from nltk.corpus import stopwords
 import string
 import re
@@ -157,6 +157,15 @@ def tokenizeText(sample):
     while "\n\n" in tokens:
         tokens.remove("\n\n")
 
+    # remove urls
+    # urlFinder = re.compile(
+    #     r".*app\.gigster\.com.*" + '|' +
+    #     r".*google\.com.*",
+    #     re.IGNORECASE)
+    # tokens = filter(
+    #     lambda tok: not urlFinder.match(tok),
+    #     tokens)
+
     return tokens
 
 def printNMostInformative(vectorizer, clf, N):
@@ -177,10 +186,17 @@ if __name__ == '__main__':
     dataset = load_dataset()
 
     # the vectorizer and classifer to use, the tokenizer in CountVectorizer uses a custom function (spaCy's tokenizer)
+    cleaner = CleanTextTransformer()
     vectorizer = CountVectorizer(tokenizer=tokenizeText, ngram_range=(1,1))
-    clf = LinearSVC()
+    tfidf = TfidfTransformer(use_idf=True)
+    clf = LinearSVC(loss='hinge', penalty='l2', random_state=42)
+
     # the pipeline to clean, tokenize, vectorize, and classify
-    pipe = Pipeline([('cleanText', CleanTextTransformer()), ('vectorizer', vectorizer), ('clf', clf)])
+    pipe = Pipeline([
+        ('cleanText', cleaner),
+        ('vectorizer', vectorizer),
+        ('tfidf', tfidf),
+        ('clf', clf)])
 
     # data
     X = []
@@ -199,9 +215,17 @@ if __name__ == '__main__':
     preds = pipe.predict(test)
     print("----------------------------------------------------------------------------------------------")
     print("results:")
-    for (sample, pred) in zip(test, preds):
-        print(sample, ":", pred)
+    for (sample, pred, label) in zip(test, preds, labelsTest):
+        print(sample)
+        print('--')
+        print('prediction: {}, label: {}'.format(pred, label))
+        print('--')
+
+    print("----------------------------------------------------------------------------------------------")
     print("accuracy:", accuracy_score(labelsTest, preds))
+    print(classification_report(labelsTest, preds))
+    print(confusion_matrix(labelsTest, preds))
+
 
     print("----------------------------------------------------------------------------------------------")
     print("Top 10 features used to predict: ")
