@@ -1,11 +1,7 @@
 import cherrypy
 
-import sys
-from os.path import dirname
-sys.path.append(dirname(__file__))
-
+import json
 from classifiers.marketplace_vs_social import load_classification_pipeline, CleanTextTransformer
-
 
 class ModelServer(object):
     clf = load_classification_pipeline()
@@ -15,12 +11,18 @@ class ModelServer(object):
     def predict(self, message):
         if message == 'RESET':
             ModelServer.messages = []
-            return 'Resetting belief states'
+            response = 'Resetting conversation state.'
+            pred = [0, 0]
         else:
             if not ModelServer.messages:
                 ModelServer.messages = []
             ModelServer.messages.append(message)
-            return str(ModelServer.clf), str(ModelServer.messages)
+            pred = ModelServer.clf.predict_proba(['\n'.join(ModelServer.messages)])[0].tolist()
+            response = 'What do you mean by: ' + message
+        return json.dumps({
+            'message': response,
+            'predictions': pred
+        })
 
 if __name__ == '__main__':
     from classifiers.marketplace_vs_social import load_classification_pipeline, CleanTextTransformer
