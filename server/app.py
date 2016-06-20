@@ -1,16 +1,19 @@
 import cherrypy
+
 import json
 
 from chatbot.bot import load_chatbot
 from classifiers.marketplace_vs_social import load_classification_pipeline, CleanTextTransformer
 
 class ModelServer(object):
+    exposed = True
+
     messages = []
     clf = load_classification_pipeline()
     chatbot = load_chatbot()
 
-    @cherrypy.expose
-    def predict(self, message):
+    @cherrypy.tools.accept(media='text/plain')
+    def GET(self, message):
         if message == 'RESET':
             ModelServer.messages = []
             response = 'Resetting conversation state.'
@@ -27,6 +30,15 @@ class ModelServer(object):
             'predictions': pred
         })
 
+def CORS():
+    cherrypy.response.headers["Access-Control-Allow-Origin"] = "http://localhost:8081"
+
 if __name__ == '__main__':
-    from classifiers.marketplace_vs_social import load_classification_pipeline, CleanTextTransformer
-    cherrypy.quickstart(ModelServer(), '/')
+    conf = {
+        '/': {
+                    'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
+                    'tools.CORS.on': True,
+                }
+    }
+    cherrypy.tools.CORS = cherrypy.Tool('before_handler', CORS)
+    cherrypy.quickstart(ModelServer(), '/', conf)

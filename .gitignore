@@ -5,3 +5,4 @@ papers/
 **/__pycache__/
 database.db
 *.pkl
+*.log
