@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
-
 import spacy
 from nltk.corpus import stopwords
-
 
 from sklearn.pipeline import Pipeline
 from sklearn.base import TransformerMixin
@@ -212,29 +210,16 @@ def prepare_train_test():
     return train_test_split(X, y, test_size=0.1, random_state=42)
 
 def make_preprocessing_pipeline():
-    # the vectorizer and classifer to use, the tokenizer in CountVectorizer uses a custom function (spaCy's tokenizer)
     cleaner = CleanTextTransformer()
     tfidf = TfidfVectorizer(sublinear_tf=True, max_df=0.5)
+    # this uses spacey's tokenizer
+    #tfidf = TfidfVectorizer(sublinear_tf=True, max_df=0.5, tokenizer=tokenizeText)
 
     # the pipeline to clean, tokenize, vectorize, and classify
     pipe = Pipeline([
         ('cleanText', cleaner),
         ('tfidf', tfidf)])
     return pipe
-
-# TODO: actually run this and tune the classifier
-def do_grid_search(pipe):
-    "Grid searches pipeline parameters."
-    from sklearn.grid_search import GridSearchCV
-    parameters = {
-        'vectorizer__ngram_range': [(1, 1), (1, 2)],
-        'tfidf__use_idf': (True, False)
-    }
-    gs_pipe = GridSearchCV(pipe, parameters, n_jobs=-1).fit(train, labelsTrain)
-    best_parameters, score, _ = max(gs_pipe.grid_scores_, key=lambda x: x[1])
-    print("Score: {}".format(score))
-    for param_name in sorted(parameters.keys()):
-        print("%s: %r" % (param_name, best_parameters[param_name]))
 
 # this method shows L-SVM with L1 Var Selection does best (78% acc)
 def evaluate_classifiers():
@@ -344,15 +329,20 @@ def evaluate(pipe, test, labelsTest):
     clf = pipe.steps[2][1]
     printNMostInformative(vectorizer, clf, 10)
 
-if __name__ == '__main__':
-    train, test, labelsTrain, labelsTest = prepare_train_test()
+def load_classification_pipeline():
     if os.path.exists(MODEL_OUTPATH):
         print("Loading pipeline from: {}".format(MODEL_OUTPATH))
         pipe = joblib.load(MODEL_OUTPATH)
     else:
         print("Training pipeline")
+        train, test, _, _ = prepare_train_test()
         pipe = make_classification_pipeline()
         pipe.fit(train, labelsTrain)
+    return pipe
+
+if __name__ == '__main__':
+    train, test, labelsTrain, labelsTest = prepare_train_test()
+    pipe = load_classification_pipeline()
 
     # test
     evaluate(pipe, test, labelsTest)
