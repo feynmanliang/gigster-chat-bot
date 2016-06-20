@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+CHATS_PKL_PATH = 'data/chat_histories.pkl'
+
 from collections import namedtuple
 import pickle
 import json
@@ -26,12 +28,22 @@ def parse_chats_messages(chats_data):
         else:
             yield ChatHistory(gigId, parsed_chat_history)
 
-def pickle_chat_histories(fp = 'data/chat_histories.pkl'):
+def pickle_chat_histories():
     """Serializes chat_histories to disk."""
     chats_data = import_chats_data()
     chat_histories = parse_chats_messages(chats_data)
-    with open(fp, 'wb') as out_fd:
+    with open(CHATS_PKL_PATH, 'wb') as out_fd:
         pickle.dump(list(chat_histories), out_fd)
+
+def load_chat_histories():
+    with open(CHATS_PKL_PATH, 'rb') as fd:
+        try:
+            chats = pickle.load(fd)
+        except FileNotFoundError:
+            print('Chat histories not found at {}, regenerating'.format(CHATS_PKL_PATH))
+            pickle_chat_histories(CHATS_PKL_PATH)
+            chats = pickle.load(fd)
+    return chats
 
 if __name__ == "__main__":
     pickle_chat_histories()

@@ -1,11 +1,13 @@
 import cherrypy
-
 import json
+
+from chatbot.bot import load_chatbot
 from classifiers.marketplace_vs_social import load_classification_pipeline, CleanTextTransformer
 
 class ModelServer(object):
-    clf = load_classification_pipeline()
     messages = []
+    clf = load_classification_pipeline()
+    chatbot = load_chatbot()
 
     @cherrypy.expose
     def predict(self, message):
@@ -18,7 +20,8 @@ class ModelServer(object):
                 ModelServer.messages = []
             ModelServer.messages.append(message)
             pred = ModelServer.clf.predict_proba(['\n'.join(ModelServer.messages)])[0].tolist()
-            response = 'What do you mean by: ' + message
+            #response = 'What do you mean by: ' + message
+            response = ModelServer.chatbot.get_response(message).text
         return json.dumps({
             'message': response,
             'predictions': pred

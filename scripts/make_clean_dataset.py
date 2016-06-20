@@ -4,20 +4,14 @@ from collections import namedtuple
 import pickle
 from pprint import pprint
 
-from scripts.chat_data_clean import pickle_chat_histories
+from scripts.chat_data_clean import load_chat_histories
 from scripts.gig_data_clean import parse_gigs
 
 DATASET_PATH = 'data/clean_dataset.pkl'
 
 GigInstance = namedtuple('GigInstance', ['gigId', 'name', 'messages', 'features', 'templates'])
-def make_clean_dataset(fp = DATASET_PATH, chats_pkl_path = 'data/chat_histories.pkl'):
-    with open(chats_pkl_path, 'rb') as fd:
-        try:
-            chats = pickle.load(fd)
-        except EOFError:
-            print('Chat histories not found at {}, regenerating'.format(chats_pkl_path))
-            pickle_chat_histories(chats_pkl_path)
-            chats = pickle.load(fd)
+def make_clean_dataset(fp = DATASET_PATH):
+    chats = load_chat_histories()
     gigs = parse_gigs()
 
     # convert to dicts keyed by gigId for hash-join
