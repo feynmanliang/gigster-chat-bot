@@ -29,5 +29,3 @@ def load_chatbot():
 
 if __name__ == '__main__':
     chatbot = load_chatbot()
-    # Get a response to an input statement
-    print(chatbot.get_response("Hello, how are you today?"))
